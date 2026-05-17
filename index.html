@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>UNED Exam Generator - OCR + IA</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a472a 0%, #2d5a3b 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .contenedor {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #1a472a;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitulo {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #666;
+            border-radius: 10px;
+            transition: all 0.3s;
+            width: auto;
+            margin-top: 0;
+        }
+
+        .tab-btn.activo {
+            background: #1a472a;
+            color: white;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.activo {
+            display: block;
+        }
+
+        .api-config {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .api-config label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #856404;
+        }
+
+        .api-config input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .api-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .borrar-clave {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: underline;
+        }
+
+        .estado-clave {
+            font-size: 12px;
+            color: #28a745;
+            margin-left: auto;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #1a472a;
+        }
+
+        .zona-imagen {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+            border: 1px dashed #1a472a;
+        }
+
+        .galeria-imagenes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .imagen-item {
+            position: relative;
+            display: inline-block;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .imagen-item img {
+            max-width: 150px;
+            max-height: 150px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .imagen-item button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            margin: 0;
+        }
+
+        button {
+            background-color: #1a472a;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            margin-top: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #2d5a3b;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .resultado-box {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            border-left: 4px solid #1a472a;
+        }
+
+        .resultado-contenido {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        .pregunta-card {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #1a472a;
+        }
+
+        .pregunta-header {
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #1a472a;
+            font-size: 14px;
+        }
+
+        .pregunta-texto {
+            font-size: 16px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .opcion {
+            display: block;
+            margin: 8px 0;
+            padding: 12px 15px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .opcion:hover {
+            background-color: #e8f5e9;
+            border-color: #1a472a;
+        }
+
+        .opcion.seleccionada {
+            background-color: #1a472a;
+            color: white;
+            border-color: #1a472a;
+        }
+
+        .opcion.correcta-resaltada {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .opcion.incorrecta-resaltada {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .feedback {
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .botones-control {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .botones-control button {
+            width: auto;
+            padding: 12px 24px;
+            margin-top: 0;
+        }
+
+        .resultado-final {
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        .nota-final {
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .cargando {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a472a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .sobresaliente { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
+        .notable { background: linear-gradient(135deg, #17a2b8, #5bc0de); color: white; }
+        .aprobado { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #333; }
+        .suspenso { background: linear-gradient(135deg, #dc3545, #c82333); color: white; }
+
+        .copiar-btn {
+            background-color: #28a745;
+            padding: 8px 16px;
+            width: auto;
+            margin-top: 10px;
+            font-size: 14px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .articulo-ref {
+            font-size: 12px;
+            color: #1a472a;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .resumen-manual {
+            background-color: #e8f5e9;
+            border: 2px solid #1a472a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-imagenes {
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #0d47a1;
+        }
+
+        .texto-extraido {
+            background-color: #fff3e0;
+            border-left: 3px solid #ff9800;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #999;
+        }
+
+        @media (max-width: 768px) {
+            .contenedor { padding: 20px; }
+            .tab-btn { padding: 8px 16px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="contenedor">
+    <h1>📚 UNED Exam Generator</h1>
+    <div class="subtitulo">OCR + IA - Extrae texto de imágenes y genera exámenes tipo test estilo UNED</div>
+
+    <div class="api-config">
+        <label>🔑 API Key de DeepSeek</label>
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+        <div class="api-actions">
+            <button type="button" class="borrar-clave" id="borrarKeyBtn">🗑️ Borrar clave guardada</button>
+            <span class="estado-clave" id="estadoClave"></span>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn activo" data-tab="texto">📖 Subir imágenes + texto</button>
+        <button class="tab-btn" data-tab="resumen">📝 Mi Resumen</button>
+        <button class="tab-btn" data-tab="examen">🎯 Examen Tipo Test</button>
+    </div>
+
+    <!-- Panel 1: Imágenes + texto -->
+    <div id="tab-texto" class="tab-panel activo">
+        <label>📖 Texto adicional (opcional, si quieres añadir algo)</label>
+        <textarea id="textoOriginal" rows="6" placeholder="Pega aquí texto adicional..."></textarea>
+
+        <div class="zona-imagen">
+            <label>🖼️ Sube imágenes (fotos de libros, pantallazos, apuntes)</label>
+            <input type="file" id="imagenInput" accept="image/*" multiple>
+            <div class="info-imagenes">
+                🔍 Se usará OCR para extraer TODO el texto de las imágenes. Luego la IA analizará ese texto.
+            </div>
+            <div id="galeriaImagenes" class="galeria-imagenes"></div>
+            <div id="textoOCR" class="texto-extraido"></div>
+        </div>
+
+        <button id="generarResumenBtn" onclick="procesarImagenesYGenerarResumen()">📝 Extraer texto con OCR y generar resumen</button>
+    </div>
+
+    <!-- Panel 2: Resumen -->
+    <div id="tab-resumen" class="tab-panel">
+        <div class="resumen-manual">
+            <label>📋 O pega aquí tu resumen directamente</label>
+            <textarea id="resumenManual" rows="8" placeholder="Si ya tienes un resumen hecho, pégalo aquí..."></textarea>
+            <div class="botones-control" style="margin-top: 10px;">
+                <button onclick="usarResumenManual()" style="background-color: #17a2b8; width: auto;">📥 Usar este resumen</button>
+                <button onclick="limpiarResumenManual()" style="background-color: #6c757d; width: auto;">🗑️ Limpiar</button>
+            </div>
+        </div>
+
+        <div id="resumenContainer" class="resultado-box" style="display: none;">
+            <h3>📋 Resumen conceptual (nivel UNED)</h3>
+            <div id="resumenContenido" class="resultado-contenido"></div>
+            <button class="copiar-btn" onclick="copiarResumen()">📋 Copiar resumen</button>
+            <button class="copiar-btn" style="background-color: #1a472a;" onclick="irAExamen()">🎯 Generar examen</button>
+        </div>
+        <div id="resumenVacio" style="text-align: center; padding: 60px; color: #999;">
+            <p>🔍 Puedes:</p>
+            <p>1️⃣ Subir imágenes en la primera pestaña y generar resumen con OCR</p>
+            <p>2️⃣ O pegar tu resumen manualmente</p>
+        </div>
+    </div>
+
+    <!-- Panel 3: Examen -->
+    <div id="tab-examen" class="tab-panel">
+        <div id="examenInfo" style="background:#e8f5e9; padding:15px; border-radius:10px; margin-bottom:20px; display:none;">
+            ⚠️ Aún no hay resumen.
+        </div>
+        <button id="generarExamenBtn" onclick="generarExamenDesdeResumen()" style="background-color: #1a472a;">🎯 Generar Examen Tipo Test UNED</button>
+        <div id="examenContainer"></div>
+    </div>
+
+    <footer>💡 Las imágenes se procesan con OCR (reconocimiento de texto) en tu navegador. Luego la IA genera resumen y preguntas.</footer>
+</div>
+
+<script>
+    // ========== VARIABLES GLOBALES ==========
+    let resumenGenerado = null;
+    let textoExtraidoGlobal = "";
+    let examenActual = null;
+    let respuestasUsuario = [];
+    let imagenesBase64 = [];
+
+    // ========== PESTAÑAS ==========
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tab = this.getAttribute('data-tab');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+            this.classList.add('activo');
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('activo'));
+            document.getElementById(`tab-${tab}`).classList.add('activo');
+        });
+    });
+
+    // ========== GALERÍA DE IMÁGENES ==========
+    const imagenInput = document.getElementById('imagenInput');
+    const galeriaImagenes = document.getElementById('galeriaImagenes');
+
+    imagenInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                imagenesBase64.push(event.target.result);
+                mostrarGaleria();
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    function mostrarGaleria() {
+        galeriaImagenes.innerHTML = '';
+        imagenesBase64.forEach((img, index) => {
+            const div = document.createElement('div');
+            div.className = 'imagen-item';
+            div.innerHTML = `
+                <img src="${img}" alt="Imagen ${index + 1}">
+                <button onclick="eliminarImagen(${index})">✖</button>
+            `;
+            galeriaImagenes.appendChild(div);
+        });
+    }
+
+    function eliminarImagen(index) {
+        imagenesBase64.splice(index, 1);
+        mostrarGaleria();
+        if (imagenInput.files.length > 0) imagenInput.value = '';
+    }
+
+    // ========== API KEY ==========
+    (function() {
+        const inputKey = document.getElementById('apiKey');
+        const estadoSpan = document.getElementById('estadoClave');
+        const borrarBtn = document.getElementById('borrarKeyBtn');
+        const savedKey = localStorage.getItem('deepseek_api_key');
+        if (savedKey) { inputKey.value = savedKey; estadoSpan.innerHTML = '✅ Clave guardada'; }
+        else estadoSpan.innerHTML = '⚪ Sin clave guardada';
+        inputKey.addEventListener('input', function() {
+            const key = this.value.trim();
+            if (key) { localStorage.setItem('deepseek_api_key', key); estadoSpan.innerHTML = '✅ Clave guardada'; }
+            else { localStorage.removeItem('deepseek_api_key'); estadoSpan.innerHTML = '⚪ Sin clave guardada'; }
+        });
+        borrarBtn.addEventListener('click', function() {
+            localStorage.removeItem('deepseek_api_key');
+            inputKey.value = '';
+            estadoSpan.innerHTML = '⚪ Clave borrada';
+        });
+    })();
+
+    function irAExamen() {
+        document.querySelector('.tab-btn[data-tab="examen"]').click();
+    }
+
+    function copiarResumen() {
+        const resumen = document.getElementById('resumenContenido').innerText;
+        navigator.clipboard.writeText(resumen);
+        alert('✅ Resumen copiado');
+    }
+
+    function usarResumenManual() {
+        const resumenManual = document.getElementById('resumenManual').value.trim();
+        if (!resumenManual) { alert('❌ Pega un resumen'); return; }
+        resumenGenerado = resumenManual;
+        document.getElementById('resumenContenido').innerHTML = escapeHtml(resumenManual).replace(/\n/g, '<br>');
+        document.getElementById('resumenContainer').style.display = 'block';
+        document.getElementById('resumenVacio').innerHTML = '<p style="text-align:center; padding:60px; color:#999;">✅ Resumen cargado manualmente.</p>';
+        document.getElementById('examenInfo').style.display = 'none';
+        alert('✅ Resumen cargado. Ve a "Examen Tipo Test"');
+    }
+
+    function limpiarResumenManual() {
+        document.getElementById('resumenManual').value = '';
+        alert('🧹 Limpiado');
+    }
+
+    // ========== PROCESAR OCR + IA ==========
+    async function procesarImagenesYGenerarResumen() {
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) { alert('❌ Introduce API Key'); return; }
+        if (imagenesBase64.length === 0 && !document.getElementById('textoOriginal').value.trim()) {
+            alert('❌ Sube al menos una imagen o escribe texto');
+            return;
+        }
+
+        const btn = document.getElementById('generarResumenBtn');
+        btn.disabled = true;
+        btn.textContent = '🔄 Extrayendo texto con OCR...';
+
+        // Mostrar área de progreso
+        document.getElementById('resumenContainer').style.display = 'none';
+        document.getElementById('resumenVacio').innerHTML = '<div class="cargando"><div class="spinner"></div><p>Procesando OCR en ' + imagenesBase64.length + ' imágenes...</p></div>';
+        document.getElementById('tab-resumen').classList.add('activo');
+        document.querySelector('.tab-btn[data-tab="resumen"]').click();
+
+        try {
+            // 1. Extraer texto de cada imagen con Tesseract.js
+            let textoCompletoOCR = "";
+            const textoManual = document.getElementById('textoOriginal').value.trim();
+
+            for (let i = 0; i < imagenesBase64.length; i++) {
+                const imgBase64 = imagenesBase64[i];
+                const { data: { text } } = await Tesseract.recognize(imgBase64, 'spa+eng', {
+                    logger: m => console.log(m)
+                });
+                textoCompletoOCR += `\n--- IMAGEN ${i+1} ---\n${text}\n`;
+            }
+
+            if (textoCompletoOCR) {
+                document.getElementById('textoOCR').innerHTML = `<strong>📄 Texto extraído por OCR:</strong><br>${escapeHtml(textoCompletoOCR)}`;
+                document.getElementById('textoOCR').style.display = 'block';
+            }
+
+            const contenidoFinal = textoManual + "\n" + textoCompletoOCR;
+            if (!contenidoFinal.trim()) throw new Error("No se extrajo texto de las imágenes");
+
+            // 2. Llamar a DeepSeek para resumir
+            btn.textContent = '🔄 Generando resumen con IA...';
+            const resumen = await llamarResumenDeepSeek(apiKey, contenidoFinal);
+            resumenGenerado = resumen;
+
+            document.getElementById('resumenContenido').innerHTML = escapeHtml(resumen).replace(/\n/g, '<br>');
+            document.getElementById('resumenContainer').style.display = 'block';
+            document.getElementById('resumenVacio').innerHTML = '<p style="text-align:center; padding:60px; color:#999;">✅ Resumen generado correctamente.</p>';
+            document.getElementById('examenInfo').style.display = 'none';
+        } catch (error) {
+            document.getElementById('resumenVacio').innerHTML = `<div class="resultado-final suspenso">❌ Error: ${error.message}</div>`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '📝 Extraer texto con OCR y generar resumen';
+        }
+    }
+
+    async function llamarResumenDeepSeek(apiKey, textoCompleto) {
+        const prompt = `Actúa como profesor universitario UNED. Realiza un resumen conceptual COMPLETO del siguiente texto extraído mediante OCR de imágenes y texto adicional.
+
+REGLAS:
+1. NO inventes información. Usa SOLO el texto proporcionado.
+2. Extrae todas las ideas clave, artículos, fechas, definiciones.
+3. Si el texto está desordenado, organízalo lógicamente.
+4. Respetua los títulos o apartados que aparezcan.
+5. Devuelve solo el resumen, en párrafos claros.
+
+--- TEXTO EXTRAÍDO ---
+${textoCompleto}`;
+
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.3,
+                max_tokens: 4000
+            })
+        });
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+
+    // ========== GENERAR EXAMEN ==========
+    async function generarExamenDesdeResumen() {
+        if (!resumenGenerado) {
+            document.getElementById('examenInfo').style.display = 'block';
+            document.getElementById('examenInfo').innerHTML = '⚠️ Primero genera o pega un resumen.';
+            document.querySelector('.tab-btn[data-tab="resumen"]').click();
+            return;
+        }
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) { alert('❌ Introduce API Key'); return; }
+
+        const btn = document.getElementById('generarExamenBtn');
+        const container = document.getElementById('examenContainer');
+        btn.disabled = true;
+        btn.textContent = '🔄 Generando examen...';
+        container.innerHTML = '<div class="cargando"><div class="spinner"></div><p>Generando preguntas estilo UNED...</p></div>';
+
+        try {
+            const examen = await generarTestUNED(apiKey, resumenGenerado);
+            examenActual = examen;
+            respuestasUsuario = new Array(examen.preguntas.length).fill(null);
+            mostrarTestUNED(examen);
+        } catch (error) {
+            container.innerHTML = `<div class="resultado-final suspenso">❌ Error: ${error.message}</div>`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🎯 Generar Examen Tipo Test UNED';
+        }
+    }
+
+    async function generarTestUNED(apiKey, resumen) {
+        const prompt = `Genera 10 preguntas tipo test estilo UNED basadas EXCLUSIVAMENTE en este resumen. Formato JSON:
+{
+    "titulo": "Título",
+    "preguntas": [
+        {
+            "numero": 1,
+            "pregunta": "enunciado",
+            "opciones": ["correcta", "incorrecta1", "incorrecta2"],
+            "correcta": 0,
+            "explicacion": "breve",
+            "articulo": "si aplica"
+        }
+    ]
+}
+--- RESUMEN ---
+${resumen}`;
+
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [{ role: 'system', content: 'Eres profesor UNED. Respondes solo JSON válido.' },
+                           { role: 'user', content: prompt }],
+                temperature: 0.5,
+                response_format: { type: 'json_object' }
+            })
+        });
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        const data = await response.json();
+        const parsed = JSON.parse(data.choices[0].message.content);
+        if (!parsed.preguntas || parsed.preguntas.length !== 10) throw new Error("Número incorrecto de preguntas");
+        return parsed;
+    }
+
+    function mostrarTestUNED(examen) {
+        const container = document.getElementById('examenContainer');
+        let html = `<h2 style="color:#1a472a;">📝 ${escapeHtml(examen.titulo)}</h2>
+        <div style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:20px;">📊 10 preguntas. Acierto +1, fallo -0.40.</div>`;
+        examen.preguntas.forEach((p, idx) => {
+            const letras = ['A', 'B', 'C'];
+            let opcionesHtml = '';
+            p.opciones.forEach((op, optIdx) => {
+                opcionesHtml += `<div class="opcion" onclick="seleccionarRespuesta(${idx}, ${optIdx})">${letras[optIdx]}. ${escapeHtml(op)}</div>`;
+            });
+            html += `<div class="pregunta-card" id="pregunta-${idx}">
+                        <div class="pregunta-header">Pregunta ${idx+1}</div>
+                        <div class="pregunta-texto">${escapeHtml(p.pregunta)}</div>
+                        <div id="opciones-${idx}">${opcionesHtml}</div>
+                        ${p.articulo ? `<div class="articulo-ref">📌 ${escapeHtml(p.articulo)}</div>` : ''}
+                        <div class="feedback" id="feedback-${idx}"></div>
+                    </div>`;
+        });
+        html += `<div class="botones-control">
+                    <button onclick="corregirExamen()" style="background-color:#28a745;">✅ Corregir</button>
+                    <button onclick="reiniciarExamen()" style="background-color:#6c757d;">🔄 Reiniciar</button>
+                 </div>
+                 <div id="resultadoFinal"></div>`;
+        container.innerHTML = html;
+        window.examenData = examen;
+        window.totalPreguntas = 10;
+    }
+
+    function seleccionarRespuesta(preguntaIdx, opcionIdx) {
+        if (!window.examenData) return;
+        respuestasUsuario[preguntaIdx] = opcionIdx;
+        const opcionesDiv = document.getElementById(`opciones-${preguntaIdx}`);
+        const opciones = opcionesDiv.querySelectorAll('.opcion');
+        opciones.forEach((op, i) => {
+            op.classList.remove('seleccionada');
+            if (i === opcionIdx) op.classList.add('seleccionada');
+        });
+    }
+
+    function corregirExamen() {
+        const examen = window.examenData;
+        let aciertos = 0, fallos = 0, noRespondidas = 0;
+        examen.preguntas.forEach((pregunta, idx) => {
+            const respuestaUser = respuestasUsuario[idx];
+            const feedbackDiv = document.getElementById(`feedback-${idx}`);
+            const opcionesDiv = document.getElementById(`opciones-${idx}`);
+            const opciones = opcionesDiv.querySelectorAll('.opcion');
+            opciones.forEach(op => op.classList.remove('correcta-resaltada', 'incorrecta-resaltada', 'seleccionada'));
+            if (respuestaUser === null) {
+                noRespondidas++;
+                feedbackDiv.innerHTML = '<span style="color:#fd7e14;">⚠️ No respondida</span>';
+            } else if (respuestaUser === pregunta.correcta) {
+                aciertos++;
+                opciones[respuestaUser].classList.add('correcta-resaltada');
+                feedbackDiv.innerHTML = `<span style="color:#28a745;">✅ Correcto</span><br><small>${escapeHtml(pregunta.explicacion)}</small>`;
+            } else {
+                fallos++;
+                opciones[respuestaUser].classList.add('incorrecta-resaltada');
+                opciones[pregunta.correcta].classList.add('correcta-resaltada');
+                const letraCorrecta = String.fromCharCode(65 + pregunta.correcta);
+                feedbackDiv.innerHTML = `<span style="color:#dc3545;">❌ Incorrecto. Correcta: ${letraCorrecta}</span><br><small>${escapeHtml(pregunta.explicacion)}</small>`;
+            }
+        });
+        const notaSobreTotal = aciertos - (fallos * 0.4);
+        const notaFinal = Math.max(0, Math.round((notaSobreTotal / 10) * 100) / 100);
+        let clase = notaFinal >= 9 ? 'sobresaliente' : notaFinal >= 7 ? 'notable' : notaFinal >= 5 ? 'aprobado' : 'suspenso';
+        document.getElementById('resultadoFinal').innerHTML = `<div class="resultado-final ${clase}"><div>✅ ${aciertos} | ❌ ${fallos} | ⚠️ ${noRespondidas}</div><div class="nota-final">${notaFinal}/10</div></div>`;
+    }
+
+    function reiniciarExamen() {
+        if (!window.totalPreguntas) return;
+        respuestasUsuario = new Array(window.totalPreguntas).fill(null);
+        for (let i = 0; i < window.totalPreguntas; i++) {
+            const opcionesDiv = document.getElementById(`opciones-${i}`);
+            if (opcionesDiv) opcionesDiv.querySelectorAll('.opcion').forEach(op => op.classList.remove('seleccionada', 'correcta-resaltada', 'incorrecta-resaltada'));
+            const feedbackDiv = document.getElementById(`feedback-${i}`);
+            if (feedbackDiv) feedbackDiv.innerHTML = '';
+        }
+        document.getElementById('resultadoFinal').innerHTML = '';
+    }
+
+    function escapeHtml(texto) {
+        if (!texto) return '';
+        const div = document.createElement('div');
+        div.textContent = texto;
+        return div.innerHTML;
+    }
+</script>
+
+</body>
+</html>
